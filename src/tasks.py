@@ -1,4 +1,5 @@
 import random
+import json
 from typing import List
 
 
@@ -30,10 +31,15 @@ class DelayDiscountTask:
         self.current_trial_amount = self.max_value / 2
         self._randomise_display()
         return True
+    
+
+    def _get_adjust_amount(self):
+        return self.max_value * 2**-self.current_trial
+
 
     def _setup_next_trial(self, chose_max):
         self.current_trial += 1
-        adjust_amount = self.max_value * 2**-self.current_trial
+        adjust_amount = self._get_adjust_amount()
 
         if chose_max:
             self.current_trial_amount = self.current_trial_amount + adjust_amount
@@ -45,6 +51,30 @@ class DelayDiscountTask:
 
     def _randomise_display(self):
         self.max_side = random.choice([1, 2])
+
+
+    def _record_indifference_point(self, chose_max):
+        self.current_trial += 1
+        adjust_amount = self._get_adjust_amount()
+
+        if chose_max:
+            indifference_point = self.current_trial_amount - adjust_amount
+
+        else:
+            indifference_point = self.current_trial_amount + adjust_amount
+
+        self.log.append(
+            {
+                "trial": -1,
+                "delay": self.delay_range[self.current_delay],
+                "current_value": indifference_point,
+                "max_value": self.max_value,
+                "max_side": -1,
+                "response": -1,
+                "chose_max": False,
+            }
+        )
+
 
     def get_trial(self):
         if self.max_side == 1:
@@ -80,6 +110,7 @@ class DelayDiscountTask:
         )
 
         if self.current_trial == self.max_trials:
+            self._record_indifference_point(chose_max)
             self._setup_trial_block()
         else:
             self._setup_next_trial(chose_max)
@@ -88,6 +119,12 @@ class DelayDiscountTask:
 
     def get_log(self):
         return self.log
+    
+
+    def save_log(self, filename: str):
+        with open(filename, "w") as f:
+            json.dump(self.log, f)
+
 
     def get_is_running(self):
         return self.is_running
